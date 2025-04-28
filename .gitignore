@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+
+# Docker
+*.log
+*.pid
+
+# PyInstaller Output
+build/
+dist/
+*.spec
+orchestrator_dist/
+
+# VS Code
+.vscode/
+
+# Others
+.env

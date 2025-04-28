@@ -1,8 +1,13 @@
 version: '3'
 services:
   controller:
-    build: ./controller
+    build:
+      context: .
+      dockerfile: controller/Dockerfile
     ports:
       - "5000:5000"
-    volumes:
-      - ./controller:/app
+    restart: always
+    environment:
+      - FLASK_ENV=production
+
+
