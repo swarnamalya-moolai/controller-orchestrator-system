@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Generate Orchestrator</title>
+    <script>
+        function toggleButton() {
+            const name = document.getElementById('orchestrator_name').value;
+            document.getElementById('generate_btn').disabled = name.trim() === '';
+        }
+    </script>
+</head>
+<body>
+    <h1>MoolAI Controller</h1>
+    <a href="/dashboard">Go to Dashboard</a>
+    <form action="/generate" method="post" style="margin-top: 20px;">
+        <label for="orchestrator_name">Orchestrator Name:</label>
+        <input type="text" id="orchestrator_name" name="orchestrator_name" oninput="toggleButton()" required>
+
+        <br><br>
+        <label for="label">Label Process:</label>
+        <select id="label" name="label">
+            <option value="Prompt Security">Prompt Security</option>
+            <option value="Advanced Feedback System">Advanced Feedback System</option>
+            <option value="Advanced Semantic caching">Advanced Semantic caching</option>
+            <option value="Monitoring and Logging">Monitoring and Logging</option>
+        </select>
+
+        <br><br>
+        <button type="submit" id="generate_btn" disabled>Generate & Download Orchestrator</button>
+    </form>
+</body>
+</html>

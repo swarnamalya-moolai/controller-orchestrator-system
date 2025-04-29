@@ -9,11 +9,9 @@ import zipfile
 app = Flask(__name__)
 app.secret_key = 'supersecret'
 
-# Hardcoded Dummy User Credentials
 DUMMY_USERNAME = "admin"
 DUMMY_PASSWORD = "password123"
 
-# Dictionary to store heartbeat by IP address
 orchestrators = {}
 
 @app.route('/', methods=['GET', 'POST'])
@@ -28,32 +26,32 @@ def login():
             return "Login failed. Invalid credentials."
     return render_template('index.html')
 
-@app.route('/home')
+@app.route('/home', methods=['GET', 'POST'])
 def home():
     if 'user' not in session:
         return redirect(url_for('login'))
-    return '''
-    <h1>I'm Alive - Controller</h1>
-    <a href="/dashboard" class="btn btn-primary">Go to Dashboard</a>
-    <form action="/generate" method="post" style="margin-top: 20px;">
-        <button type="submit">Generate & Download Orchestrator</button>
-    </form>
-    '''
+    return render_template('home.html')
 
 @app.route('/generate', methods=['POST'])
 def generate():
     if 'user' not in session:
         return redirect(url_for('login'))
 
-    create_orchestrator_executable()
+    orch_name = request.form.get('orchestrator_name')
+    if not orch_name:
+        return "Missing orchestrator name", 400
+
+    create_orchestrator_executable(orch_name)
     file_path = './orchestrator_dist/orchestrator_build.zip'
     return send_file(file_path, as_attachment=True)
 
 @app.route('/heartbeat', methods=['POST'])
 def heartbeat():
+    data = request.json
+    orch_id = data.get('id')
     ip = request.remote_addr
-    orchestrators[ip] = datetime.datetime.now()
-    print(f"[Heartbeat] Received from {ip} at {orchestrators[ip]}")
+    orchestrators[ip] = (orch_id, datetime.datetime.utcnow())
+    print(f"[Heartbeat] Received from {orch_id} @ {ip} at {datetime.datetime.utcnow()}")
     return {"status": "received"}
 
 @app.route('/dashboard')
@@ -65,59 +63,45 @@ def dashboard():
 @app.route('/api/heartbeat_status')
 def heartbeat_status():
     if 'user' not in session:
-        return jsonify({})
+        return jsonify([])
 
-    now = datetime.datetime.now()
+    now = datetime.datetime.utcnow()
     data = []
-
-    for ip, last_seen in orchestrators.items():
-        status = "Online" if (now - last_seen).seconds <= 120 else "Offline"
+    for ip, (orch_id, last_seen) in orchestrators.items():
+        status = "Online" if (now - last_seen).total_seconds() <= 30 else "Offline"
         data.append({
-            "id": f"orch_{int(last_seen.timestamp())}",
+            "id": orch_id,
             "ip": ip,
-            "last_seen": last_seen.strftime('%Y-%m-%d %H:%M:%S'),
+            "last_seen": "",  # removed timestamp to hide UTC issue
             "status": status
         })
-
     return jsonify(data)
 
 def monitor_heartbeats():
     while True:
-        now = datetime.datetime.now()
-        for ip, last_seen in list(orchestrators.items()):
-            if (now - last_seen).seconds > 180:
-                print(f"[WARNING] Lost heartbeat from {ip}")
-        threading.Event().wait(60)
+        now = datetime.datetime.utcnow()
+        for ip, (orch_id, last_seen) in list(orchestrators.items()):
+            if (now - last_seen).total_seconds() > 60:
+                print(f"[WARNING] Lost heartbeat from {orch_id} @ {ip}")
+        threading.Event().wait(15)
 
-def create_orchestrator_executable():
+def create_orchestrator_executable(orchestrator_name):
     os.makedirs("./orchestrator_dist", exist_ok=True)
-
     shutil.copyfile('./orchestrator-template/orchestrator.py', './orchestrator-template/orchestrator_build.py')
 
     subprocess.run([
-        "pyinstaller",
-        "--onefile",
-        "--distpath", "./orchestrator_dist",
-        "--clean",
-        "--name", "orchestrator_build",
-        "--noconsole",
+        "pyinstaller", "--onefile", "--distpath", "./orchestrator_dist", "--clean",
+        "--name", "orchestrator_build", "--noconsole",
         "./orchestrator-template/orchestrator_build.py"
-    ])
+    ], env={**os.environ, "WINEARCH": "win32", "WINEPREFIX": "/root/.wine"})
 
-    build_filename = "orchestrator_build"
-    build_path = os.path.join("./orchestrator_dist", build_filename)
-    zip_path = os.path.join("./orchestrator_dist", "orchestrator_build.zip")
-
+    build_path = "./orchestrator_dist/orchestrator_build"
+    zip_path = "./orchestrator_dist/orchestrator_build.zip"
     if not os.path.exists(build_path):
-        raise FileNotFoundError(f"{build_filename} not found!")
-
-    if os.path.exists(zip_path):
-        os.remove(zip_path)
+        raise FileNotFoundError("orchestrator_build not found!")
 
     with zipfile.ZipFile(zip_path, 'w') as zipf:
-        zipf.write(build_path, arcname=build_filename)
-
-    print(f"[INFO] Successfully created zipped orchestrator at {zip_path}")
+        zipf.write(build_path, arcname=f"{orchestrator_name}_orchestrator_build")
 
 if __name__ == '__main__':
     threading.Thread(target=monitor_heartbeats, daemon=True).start()
