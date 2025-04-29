@@ -97,7 +97,6 @@ def create_orchestrator_executable():
 
     shutil.copyfile('./orchestrator-template/orchestrator.py', './orchestrator-template/orchestrator_build.py')
 
-    # Build the executable
     subprocess.run([
         "pyinstaller",
         "--onefile",
@@ -109,13 +108,10 @@ def create_orchestrator_executable():
     ])
 
     # Detect the correct binary
-    if os.name == 'nt':
-        build_filename = "orchestrator_build.exe"
-    else:
-        build_filename = "orchestrator_build"
+    build_filename = "orchestrator_build"  
 
     build_path = os.path.join("./orchestrator_dist", build_filename)
-    zip_path = os.path.join("./orchestrator_dist", "orchestrator_build.zip")
+    zip_path = "./orchestrator_dist/orchestrator_build.zip"
 
     if not os.path.exists(build_path):
         raise FileNotFoundError(f"{build_filename} not found!")
