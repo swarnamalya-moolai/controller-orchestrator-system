@@ -2,32 +2,26 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Generate Orchestrator</title>
-    <script>
-        function toggleButton() {
-            const name = document.getElementById('orchestrator_name').value;
-            document.getElementById('generate_btn').disabled = name.trim() === '';
-        }
-    </script>
+    <title>Controller Home</title>
 </head>
 <body>
     <h1>MoolAI Controller</h1>
-    <a href="/dashboard">Go to Dashboard</a>
-    <form action="/generate" method="post" style="margin-top: 20px;">
-        <label for="orchestrator_name">Orchestrator Name:</label>
-        <input type="text" id="orchestrator_name" name="orchestrator_name" oninput="toggleButton()" required>
+    <form action="/generate" method="post">
+        <label for="name">Name of the Orchestrator (required):</label>
+        <input type="text" id="name" name="name" required><br><br>
 
-        <br><br>
-        <label for="label">Label Process:</label>
-        <select id="label" name="label">
+        <label for="label">Label (optional):</label>
+        {% comment %} <select name="label" id="label">
             <option value="Prompt Security">Prompt Security</option>
             <option value="Advanced Feedback System">Advanced Feedback System</option>
-            <option value="Advanced Semantic caching">Advanced Semantic caching</option>
+            <option value="Advanced Semantic Caching">Advanced Semantic Caching</option>
             <option value="Monitoring and Logging">Monitoring and Logging</option>
-        </select>
-
+        </select> {% endcomment %}
         <br><br>
-        <button type="submit" id="generate_btn" disabled>Generate & Download Orchestrator</button>
+        <button type="submit">Generate & Download Orchestrator</button>
     </form>
+
+    <br>
+    <a href="/dashboard">Go to Dashboard</a>
 </body>
 </html>

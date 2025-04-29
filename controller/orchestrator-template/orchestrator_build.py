@@ -2,6 +2,7 @@ import requests
 import time
 import argparse
 import sys
+import os
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Orchestrator Heartbeat Sender")
@@ -10,9 +11,12 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def send_heartbeat(controller_url, orchestrator_id):
+def send_heartbeat(controller_url, orchestrator_id, orchestrator_name):
     try:
-        payload = {'id': orchestrator_id}
+        payload = {
+            'id': orchestrator_id,
+            'name': orchestrator_name
+        }
         headers = {'Content-Type': 'application/json'}
         res = requests.post(controller_url, json=payload, headers=headers, timeout=5)
         print(f"[Heartbeat] {res.status_code}")
@@ -23,14 +27,15 @@ if __name__ == "__main__":
     args = parse_args()
 
     ORCHESTRATOR_ID = "orch_" + str(int(time.time()))
+    ORCHESTRATOR_NAME = os.environ.get("ORCHESTRATOR_NAME", "Unnamed Orchestrator")
     CONTROLLER_URL = args.controller
     INTERVAL = args.interval
 
     print(f"[INFO] Starting Orchestrator {ORCHESTRATOR_ID}")
+    print(f"[INFO] Orchestrator Name: {ORCHESTRATOR_NAME}")
     print(f"[INFO] Target Controller: {CONTROLLER_URL}")
     print(f"[INFO] Heartbeat Interval: {INTERVAL} seconds")
 
     while True:
-        send_heartbeat(CONTROLLER_URL, ORCHESTRATOR_ID)
+        send_heartbeat(CONTROLLER_URL, ORCHESTRATOR_ID, ORCHESTRATOR_NAME)
         time.sleep(INTERVAL)
-

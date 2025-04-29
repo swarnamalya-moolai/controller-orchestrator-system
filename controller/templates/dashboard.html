@@ -14,7 +14,7 @@
             data.forEach(row => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td>${row.name || row.id}</td>
+                    <td>${row.name || 'N/A'}</td>
                     <td>${row.ip}</td>
                     <td>${row.last_seen || ''}</td>
                     <td><span class="badge bg-${row.status === 'Online' ? 'success' : 'danger'}">${row.status}</span></td>
