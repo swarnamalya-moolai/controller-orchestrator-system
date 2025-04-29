@@ -1,5 +1,3 @@
-# controller/app.py
-
 from flask import Flask, render_template, request, redirect, url_for, session, send_file, jsonify
 import os
 import subprocess
@@ -11,11 +9,11 @@ import zipfile
 app = Flask(__name__)
 app.secret_key = 'supersecret'
 
-# Dummy credentials
+# Hardcoded Dummy User Credentials
 DUMMY_USERNAME = "admin"
 DUMMY_PASSWORD = "password123"
 
-# Heartbeats storage
+# Dictionary to store heartbeat by IP address
 orchestrators = {}
 
 @app.route('/', methods=['GET', 'POST'])
@@ -30,7 +28,7 @@ def login():
             return "Login failed. Invalid credentials."
     return render_template('index.html')
 
-@app.route('/home', methods=['GET', 'POST'])
+@app.route('/home')
 def home():
     if 'user' not in session:
         return redirect(url_for('login'))
@@ -48,17 +46,14 @@ def generate():
         return redirect(url_for('login'))
 
     create_orchestrator_executable()
-
     file_path = './orchestrator_dist/orchestrator_build.zip'
     return send_file(file_path, as_attachment=True)
 
 @app.route('/heartbeat', methods=['POST'])
 def heartbeat():
-    data = request.json
-    orch_id = data.get('id')
     ip = request.remote_addr
-    orchestrators[orch_id] = (ip, datetime.datetime.now())
-    print(f"[Heartbeat] Received from {orch_id} @ {ip} at {datetime.datetime.now()}")
+    orchestrators[ip] = datetime.datetime.now()
+    print(f"[Heartbeat] Received from {ip} at {orchestrators[ip]}")
     return {"status": "received"}
 
 @app.route('/dashboard')
@@ -71,25 +66,27 @@ def dashboard():
 def heartbeat_status():
     if 'user' not in session:
         return jsonify({})
-    
-    data = []
+
     now = datetime.datetime.now()
-    for orch_id, (ip, last_seen) in orchestrators.items():
+    data = []
+
+    for ip, last_seen in orchestrators.items():
         status = "Online" if (now - last_seen).seconds <= 120 else "Offline"
         data.append({
-            "id": orch_id,
+            "id": f"orch_{int(last_seen.timestamp())}",
             "ip": ip,
             "last_seen": last_seen.strftime('%Y-%m-%d %H:%M:%S'),
             "status": status
         })
+
     return jsonify(data)
 
 def monitor_heartbeats():
     while True:
         now = datetime.datetime.now()
-        for orch, (ip, last_seen) in list(orchestrators.items()):
+        for ip, last_seen in list(orchestrators.items()):
             if (now - last_seen).seconds > 180:
-                print(f"[WARNING] Lost heartbeat from {orch} @ {ip}")
+                print(f"[WARNING] Lost heartbeat from {ip}")
         threading.Event().wait(60)
 
 def create_orchestrator_executable():
@@ -107,16 +104,13 @@ def create_orchestrator_executable():
         "./orchestrator-template/orchestrator_build.py"
     ])
 
-    # Detect the correct binary
-    build_filename = "orchestrator_build"  
-
+    build_filename = "orchestrator_build"
     build_path = os.path.join("./orchestrator_dist", build_filename)
-    zip_path = "./orchestrator_dist/orchestrator_build.zip"
+    zip_path = os.path.join("./orchestrator_dist", "orchestrator_build.zip")
 
     if not os.path.exists(build_path):
         raise FileNotFoundError(f"{build_filename} not found!")
 
-    # Create zip
     if os.path.exists(zip_path):
         os.remove(zip_path)
 
