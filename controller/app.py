@@ -1,3 +1,5 @@
+# controller/app.py
+
 from flask import Flask, render_template, request, redirect, url_for, session, send_file, jsonify
 import os
 import subprocess
@@ -9,11 +11,11 @@ import zipfile
 app = Flask(__name__)
 app.secret_key = 'supersecret'
 
-# Hardcoded Dummy User Credentials
+# Dummy credentials
 DUMMY_USERNAME = "admin"
 DUMMY_PASSWORD = "password123"
 
-# Dictionary to store orchestrator heartbeats
+# Heartbeats storage
 orchestrators = {}
 
 @app.route('/', methods=['GET', 'POST'])
@@ -72,7 +74,6 @@ def heartbeat_status():
     
     data = []
     now = datetime.datetime.now()
-
     for orch_id, (ip, last_seen) in orchestrators.items():
         status = "Online" if (now - last_seen).seconds <= 120 else "Offline"
         data.append({
@@ -96,6 +97,7 @@ def create_orchestrator_executable():
 
     shutil.copyfile('./orchestrator-template/orchestrator.py', './orchestrator-template/orchestrator_build.py')
 
+    # Build the executable
     subprocess.run([
         "pyinstaller",
         "--onefile",
@@ -104,25 +106,28 @@ def create_orchestrator_executable():
         "--name", "orchestrator_build",
         "--noconsole",
         "./orchestrator-template/orchestrator_build.py"
-    ], env={
-        **os.environ,
-        "WINEARCH": "win32",
-        "WINEPREFIX": "/root/.wine"
-    })
+    ])
 
-    # Always package the .exe file
-    build_path = "./orchestrator_dist/orchestrator_build.exe"
-    zip_path = "./orchestrator_dist/orchestrator_build.zip"
+    # Detect the correct binary
+    if os.name == 'nt':
+        build_filename = "orchestrator_build.exe"
+    else:
+        build_filename = "orchestrator_build"
+
+    build_path = os.path.join("./orchestrator_dist", build_filename)
+    zip_path = os.path.join("./orchestrator_dist", "orchestrator_build.zip")
 
     if not os.path.exists(build_path):
-        raise FileNotFoundError("Windows executable not found!")
+        raise FileNotFoundError(f"{build_filename} not found!")
 
     # Create zip
+    if os.path.exists(zip_path):
+        os.remove(zip_path)
+
     with zipfile.ZipFile(zip_path, 'w') as zipf:
-        zipf.write(build_path, arcname="orchestrator_build.exe")
+        zipf.write(build_path, arcname=build_filename)
 
     print(f"[INFO] Successfully created zipped orchestrator at {zip_path}")
-
 
 if __name__ == '__main__':
     threading.Thread(target=monitor_heartbeats, daemon=True).start()
