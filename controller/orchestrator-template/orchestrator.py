@@ -7,34 +7,33 @@ ORCHESTRATOR_NAME = "Unnamed Orchestrator"
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Orchestrator Heartbeat Sender")
-    parser.add_argument('--controller', required=True, help='Controller heartbeat URL')
+    parser.add_argument('--controller', required=True, help='Controller base URL (e.g. http://<ip>:5000)')
     parser.add_argument('--interval', type=int, default=60, help='Heartbeat interval in seconds')
     return parser.parse_args()
 
-def send_heartbeat(controller_url):
+def send_heartbeat(controller_url, orchestrator_id):
     try:
         payload = {
-            "id": f"orch_{int(time.time())}",
+            "id": orchestrator_id,
             "name": ORCHESTRATOR_NAME
         }
         headers = {'Content-Type': 'application/json'}
-        res = requests.post(controller_url, json=payload, headers=headers, timeout=5)
+        res = requests.post(controller_url + '/heartbeat', json=payload, headers=headers, timeout=5)
         print(f"[Heartbeat] {res.status_code}")
     except Exception as e:
         print("[Heartbeat Failed]", e)
 
 def main():
     args = parse_args()
-    controller_url = args.controller
-    interval = args.interval
+    orchestrator_id = f"orch_{int(time.time())}"
 
     print(f"[INFO] Orchestrator: {ORCHESTRATOR_NAME}")
-    print(f"[INFO] Controller: {controller_url}")
-    print(f"[INFO] Interval: {interval}s")
+    print(f"[INFO] Controller: {args.controller}")
+    print(f"[INFO] Interval: {args.interval}s")
 
     while True:
-        send_heartbeat(controller_url)
-        time.sleep(interval)
+        send_heartbeat(args.controller, orchestrator_id)
+        time.sleep(args.interval)
 
 if __name__ == '__main__':
     main()

@@ -12,7 +12,8 @@ app.secret_key = 'supersecret'
 DUMMY_USERNAME = "admin"
 DUMMY_PASSWORD = "password123"
 
-orchestrators = {}  # {ip: (orch_id, name, last_seen)}
+# {ip: (orch_id, name, last_seen)}
+orchestrators = {}
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -42,8 +43,8 @@ def generate():
         return "Name is required.", 400
 
     session['orchestrator_name'] = name
-
     create_orchestrator_executable(name)
+
     file_path = './orchestrator_dist/orchestrator_build.zip'
     return send_file(file_path, as_attachment=True)
 
@@ -91,19 +92,28 @@ def monitor_heartbeats():
 
 def create_orchestrator_executable(name):
     os.makedirs("./orchestrator_dist", exist_ok=True)
+
+    # Copy base orchestrator
     shutil.copyfile('./orchestrator-template/orchestrator.py', './orchestrator-template/orchestrator_build.py')
 
+    # Inject ORCHESTRATOR_NAME
     with open('./orchestrator-template/orchestrator_build.py', 'r+') as f:
-         content = f.read()
-         f.seek(0)
-         f.write(f'ORCHESTRATOR_NAME = "{name}"\n' + content)
+        content = f.read()
+        f.seek(0)
+        f.write(f'ORCHESTRATOR_NAME = "{name}"\n' + content)
 
-
+    # Build with PyInstaller
     subprocess.run([
-        "pyinstaller", "--onefile", "--distpath", "./orchestrator_dist", "--clean",
-        "--name", "orchestrator_build", "--noconsole", "./orchestrator-template/orchestrator_build.py"
-    ])
+        "pyinstaller",
+        "--onefile",
+        "--distpath", "./orchestrator_dist",
+        "--clean",
+        "--name", "orchestrator_build",
+        "--noconsole",
+        "./orchestrator-template/orchestrator_build.py"
+    ], check=True)
 
+    # Package the binary
     build_path = os.path.join("./orchestrator_dist", "orchestrator_build")
     zip_path = "./orchestrator_dist/orchestrator_build.zip"
 
@@ -115,7 +125,7 @@ def create_orchestrator_executable(name):
 
     with zipfile.ZipFile(zip_path, 'w') as zipf:
         zipf.write(build_path, arcname="orchestrator_build")
-    print(f"[INFO] Created: {zip_path}")
+    print(f"[INFO] Created zipped orchestrator at {zip_path}")
 
 if __name__ == '__main__':
     threading.Thread(target=monitor_heartbeats, daemon=True).start()

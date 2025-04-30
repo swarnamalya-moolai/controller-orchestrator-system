@@ -9,7 +9,11 @@
             const button = document.getElementById("generateBtn");
             button.disabled = nameField.value.trim() === "";
         }
-        window.onload = toggleGenerateButton;
+
+        document.addEventListener("DOMContentLoaded", () => {
+            document.getElementById("name").addEventListener("input", toggleGenerateButton);
+            toggleGenerateButton(); // Initial check
+        });
     </script>
 </head>
 <body>
@@ -17,13 +21,13 @@
 
     <form action="/generate" method="post">
         <label for="name">Name of the Orchestrator (required):</label><br>
-        <input type="text" id="name" name="name" required oninput="toggleGenerateButton()"><br><br>
+        <input type="text" id="name" name="name" required><br><br>
 
         <label>Please select the process to be included in your orchestrator app:</label><br>
-        <input type="checkbox" name="label" value="Prompt Security"> Prompt Security<br>
-        <input type="checkbox" name="label" value="Advanced Feedback System"> Advanced Feedback System<br>
-        <input type="checkbox" name="label" value="Advanced Semantic Caching"> Advanced Semantic Caching<br>
-        <input type="checkbox" name="label" value="Monitoring and Logging"> Monitoring and Logging<br><br>
+        <input type="checkbox" name="label[]" value="Prompt Security"> Prompt Security<br>
+        <input type="checkbox" name="label[]" value="Advanced Feedback System"> Advanced Feedback System<br>
+        <input type="checkbox" name="label[]" value="Advanced Semantic Caching"> Advanced Semantic Caching<br>
+        <input type="checkbox" name="label[]" value="Monitoring and Logging"> Monitoring and Logging<br><br>
 
         <button type="submit" id="generateBtn" disabled>Generate & Download Orchestrator</button>
     </form>

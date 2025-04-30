@@ -6,21 +6,31 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <script>
         async function fetchStatus() {
-            const res = await fetch('/api/heartbeat_status');
-            const data = await res.json();
-            const tbody = document.querySelector('#orch-table tbody');
-            tbody.innerHTML = '';
+            try {
+                const res = await fetch('/api/heartbeat_status');
+                if (!res.ok) throw new Error("Failed to fetch status");
+                const data = await res.json();
+                const tbody = document.querySelector('#orch-table tbody');
+                tbody.innerHTML = '';
 
-            data.forEach(row => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${row.name || 'N/A'}</td>
-                    <td>${row.ip}</td>
-                    <td>${row.last_seen || ''}</td>
-                    <td><span class="badge bg-${row.status === 'Online' ? 'success' : 'danger'}">${row.status}</span></td>
-                `;
-                tbody.appendChild(tr);
-            });
+                if (data.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted">No orchestrators available</td></tr>`;
+                    return;
+                }
+
+                data.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${row.name || 'N/A'}</td>
+                        <td>${row.ip}</td>
+                        <td>${row.last_seen || ''}</td>
+                        <td><span class="badge bg-${row.status === 'Online' ? 'success' : 'danger'}">${row.status}</span></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) {
+                console.error("Error fetching status:", err);
+            }
         }
 
         setInterval(fetchStatus, 3000);
