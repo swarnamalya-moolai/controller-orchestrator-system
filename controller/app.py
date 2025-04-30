@@ -13,7 +13,7 @@ DUMMY_USERNAME = "admin"
 DUMMY_PASSWORD = "password123"
 
 orchestrators = {}
-orchestrator_names = {}  # Maps IP to orchestrator name
+orchestrator_names = {}
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -39,13 +39,13 @@ def generate():
         return redirect(url_for('login'))
 
     name = request.form.get('name')
-    label = request.form.get('label')
+    labels = request.form.getlist('label')
 
     if not name:
         return "Name is required.", 400
 
     session['orchestrator_name'] = name
-    session['orchestrator_label'] = label
+    session['orchestrator_labels'] = labels
 
     create_orchestrator_executable(name)
 

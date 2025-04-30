@@ -3,22 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <title>Controller Home</title>
+    <script>
+        function toggleGenerateButton() {
+            const nameField = document.getElementById("name");
+            const button = document.getElementById("generateBtn");
+            button.disabled = nameField.value.trim() === "";
+        }
+        window.onload = toggleGenerateButton;
+    </script>
 </head>
 <body>
     <h1>MoolAI Controller</h1>
-    <form action="/generate" method="post">
-        <label for="name">Name of the Orchestrator (required):</label>
-        <input type="text" id="name" name="name" required><br><br>
 
-        <label for="label">Label (optional):</label>
-        {% comment %} <select name="label" id="label">
-            <option value="Prompt Security">Prompt Security</option>
-            <option value="Advanced Feedback System">Advanced Feedback System</option>
-            <option value="Advanced Semantic Caching">Advanced Semantic Caching</option>
-            <option value="Monitoring and Logging">Monitoring and Logging</option>
-        </select> {% endcomment %}
-        <br><br>
-        <button type="submit">Generate & Download Orchestrator</button>
+    <form action="/generate" method="post">
+        <label for="name">Name of the Orchestrator (required):</label><br>
+        <input type="text" id="name" name="name" required oninput="toggleGenerateButton()"><br><br>
+
+        <label>Please select the process to be included in your orchestrator app:</label><br>
+        <input type="checkbox" name="label" value="Prompt Security"> Prompt Security<br>
+        <input type="checkbox" name="label" value="Advanced Feedback System"> Advanced Feedback System<br>
+        <input type="checkbox" name="label" value="Advanced Semantic Caching"> Advanced Semantic Caching<br>
+        <input type="checkbox" name="label" value="Monitoring and Logging"> Monitoring and Logging<br><br>
+
+        <button type="submit" id="generateBtn" disabled>Generate & Download Orchestrator</button>
     </form>
 
     <br>
