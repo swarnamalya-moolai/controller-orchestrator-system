@@ -39,18 +39,19 @@ def generate():
         return redirect(url_for('login'))
 
     name = request.form.get('name')
-    labels = request.form.getlist('label')
+    labels = request.form.getlist('label')  # <-- updated to support checkboxes
 
     if not name:
         return "Name is required.", 400
 
     session['orchestrator_name'] = name
-    session['orchestrator_labels'] = labels
+    session['orchestrator_label'] = labels  # Optional, store labels if needed
 
     create_orchestrator_executable(name)
 
     file_path = './orchestrator_dist/orchestrator_build.zip'
     return send_file(file_path, as_attachment=True)
+
 
 @app.route('/heartbeat', methods=['POST'])
 def heartbeat():
