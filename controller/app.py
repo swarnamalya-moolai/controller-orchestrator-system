@@ -94,9 +94,10 @@ def create_orchestrator_executable(name):
     shutil.copyfile('./orchestrator-template/orchestrator.py', './orchestrator-template/orchestrator_build.py')
 
     with open('./orchestrator-template/orchestrator_build.py', 'r+') as f:
-        content = f.read()
-        f.seek(0)
-        f.write(f'ORCHESTRATOR_NAME = "{name}"\n' + content)
+         content = f.read()
+         f.seek(0)
+         f.write(f'ORCHESTRATOR_NAME = "{name}"\n' + content)
+
 
     subprocess.run([
         "pyinstaller", "--onefile", "--distpath", "./orchestrator_dist", "--clean",
