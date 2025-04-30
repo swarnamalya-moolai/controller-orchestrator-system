@@ -13,7 +13,7 @@ DUMMY_USERNAME = "admin"
 DUMMY_PASSWORD = "password123"
 
 orchestrators = {}
-orchestrator_names = {}
+orchestrator_names = {}  # Maps IP to orchestrator name
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -27,7 +27,7 @@ def login():
             return "Login failed. Invalid credentials."
     return render_template('index.html')
 
-@app.route('/home', methods=['GET', 'POST'])
+@app.route('/home', methods=['GET'])
 def home():
     if 'user' not in session:
         return redirect(url_for('login'))
@@ -39,19 +39,15 @@ def generate():
         return redirect(url_for('login'))
 
     name = request.form.get('name')
-    labels = request.form.getlist('label')  # <-- updated to support checkboxes
-
     if not name:
         return "Name is required.", 400
 
     session['orchestrator_name'] = name
-    session['orchestrator_label'] = labels  # Optional, store labels if needed
 
     create_orchestrator_executable(name)
 
     file_path = './orchestrator_dist/orchestrator_build.zip'
     return send_file(file_path, as_attachment=True)
-
 
 @app.route('/heartbeat', methods=['POST'])
 def heartbeat():
@@ -98,25 +94,38 @@ def monitor_heartbeats():
 
 def create_orchestrator_executable(name):
     os.makedirs("./orchestrator_dist", exist_ok=True)
-    shutil.copyfile('./orchestrator-template/orchestrator.py', './orchestrator-template/orchestrator_build.py')
 
+    # Copy base file and inject name at the top
+    shutil.copyfile('./orchestrator-template/orchestrator.py', './orchestrator-template/orchestrator_build.py')
     with open('./orchestrator-template/orchestrator_build.py', 'r+') as f:
         content = f.read()
         f.seek(0)
-        f.write(f'ORCHESTRATOR_NAME = "{name}"' + content)
+        f.write(f'ORCHESTRATOR_NAME = "{name}"\n' + content)
 
     subprocess.run([
-        "pyinstaller", "--onefile", "--distpath", "./orchestrator_dist", "--clean", "--name", "orchestrator_build", "--noconsole",
+        "pyinstaller",
+        "--onefile",
+        "--distpath", "./orchestrator_dist",
+        "--clean",
+        "--name", "orchestrator_build",
+        "--noconsole",
         "./orchestrator-template/orchestrator_build.py"
-    ], env={**os.environ, "WINEARCH": "win32", "WINEPREFIX": "/root/.wine"})
+    ])
 
-    build_path = "./orchestrator_dist/orchestrator_build"
+    build_filename = "orchestrator_build"
+    build_path = os.path.join("./orchestrator_dist", build_filename)
     zip_path = "./orchestrator_dist/orchestrator_build.zip"
+
     if not os.path.exists(build_path):
-        raise FileNotFoundError("orchestrator_build not found!")
+        raise FileNotFoundError(f"{build_filename} not found!")
+
+    if os.path.exists(zip_path):
+        os.remove(zip_path)
 
     with zipfile.ZipFile(zip_path, 'w') as zipf:
-        zipf.write(build_path, arcname="orchestrator_build")
+        zipf.write(build_path, arcname=build_filename)
+
+    print(f"[INFO] Successfully created zipped orchestrator at {zip_path}")
 
 if __name__ == '__main__':
     threading.Thread(target=monitor_heartbeats, daemon=True).start()
