@@ -12,7 +12,8 @@ app.secret_key = 'supersecret'
 DUMMY_USERNAME = "admin"
 DUMMY_PASSWORD = "password123"
 
-orchestrators = {}  # {ip: (orch_id, name, last_seen)}
+# Store orchestrator status: {ip: (orch_id, name, last_seen)}
+orchestrators = {}
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -41,12 +42,14 @@ def generate():
     if not name:
         return "Name is required.", 400
 
+    session['orchestrator_name'] = name
     try:
         create_orchestrator_executable(name)
-        file_path = './controller/orchestrator_dist/orchestrator_build.zip'
-        return send_file(file_path, as_attachment=True)
     except Exception as e:
-        return f"Failed to generate orchestrator: {str(e)}", 500
+        return f"Failed to generate orchestrator: {e}", 500
+
+    file_path = './orchestrator_dist/orchestrator_build.zip'
+    return send_file(file_path, as_attachment=True)
 
 @app.route('/heartbeat', methods=['POST'])
 def heartbeat():
@@ -91,13 +94,14 @@ def monitor_heartbeats():
         threading.Event().wait(15)
 
 def create_orchestrator_executable(name):
-    os.makedirs("./controller/orchestrator_dist", exist_ok=True)
+    os.makedirs("./orchestrator_dist", exist_ok=True)
 
-    src_path = './controller/orchestrator-template/orchestrator.py'
-    dest_path = './controller/orchestrator-template/orchestrator_build.py'
-    shutil.copyfile(src_path, dest_path)
+    try:
+        shutil.copyfile('./orchestrator-template/orchestrator.py', './orchestrator-template/orchestrator_build.py')
+    except FileNotFoundError as e:
+        raise FileNotFoundError("Make sure 'orchestrator.py' exists inside './orchestrator-template/'")
 
-    with open(dest_path, 'r+') as f:
+    with open('./orchestrator-template/orchestrator_build.py', 'r+') as f:
         content = f.read()
         f.seek(0)
         f.write(f'ORCHESTRATOR_NAME = "{name}"\n' + content)
@@ -106,15 +110,15 @@ def create_orchestrator_executable(name):
     subprocess.run([
         "pyinstaller",
         "--onefile",
-        "--distpath", "./controller/orchestrator_dist",
+        "--distpath", "./orchestrator_dist",
         "--clean",
         "--name", "orchestrator_build",
         "--noconsole",
-        dest_path
+        "./orchestrator-template/orchestrator_build.py"
     ], check=True)
 
-    build_path = "./controller/orchestrator_dist/orchestrator_build"
-    zip_path = "./controller/orchestrator_dist/orchestrator_build.zip"
+    build_path = os.path.join("./orchestrator_dist", "orchestrator_build")
+    zip_path = "./orchestrator_dist/orchestrator_build.zip"
 
     if not os.path.exists(build_path):
         raise FileNotFoundError("orchestrator_build not found!")
