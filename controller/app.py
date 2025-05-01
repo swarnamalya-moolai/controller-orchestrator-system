@@ -12,8 +12,7 @@ app.secret_key = 'supersecret'
 DUMMY_USERNAME = "admin"
 DUMMY_PASSWORD = "password123"
 
-# Store orchestrator status: {ip: (orch_id, name, last_seen)}
-orchestrators = {}
+orchestrators = {}  # {ip: (orch_id, name, last_seen)}
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -27,7 +26,7 @@ def login():
             return "Login failed. Invalid credentials."
     return render_template('index.html')
 
-@app.route('/home', methods=['GET'])
+@app.route('/home')
 def home():
     if 'user' not in session:
         return redirect(url_for('login'))
@@ -42,13 +41,9 @@ def generate():
     if not name:
         return "Name is required.", 400
 
-    session['orchestrator_name'] = name
-    try:
-        create_orchestrator_executable(name)
-    except Exception as e:
-        return f"Failed to generate orchestrator: {e}", 500
+    create_orchestrator_executable(name)
 
-    file_path = './orchestrator_dist/orchestrator_build.zip'
+    file_path = './controller/orchestrator_dist/orchestrator_build.zip'
     return send_file(file_path, as_attachment=True)
 
 @app.route('/heartbeat', methods=['POST'])
@@ -94,41 +89,41 @@ def monitor_heartbeats():
         threading.Event().wait(15)
 
 def create_orchestrator_executable(name):
-    os.makedirs("./orchestrator_dist", exist_ok=True)
+    base_path = './controller/orchestrator-template'
+    build_path = './controller/orchestrator_dist'
+    os.makedirs(build_path, exist_ok=True)
 
-    try:
-        shutil.copyfile('./orchestrator-template/orchestrator.py', './orchestrator-template/orchestrator_build.py')
-    except FileNotFoundError as e:
-        raise FileNotFoundError("Make sure 'orchestrator.py' exists inside './orchestrator-template/'")
+    shutil.copyfile(f'{base_path}/orchestrator.py', f'{base_path}/orchestrator_build.py')
 
-    with open('./orchestrator-template/orchestrator_build.py', 'r+') as f:
+    # Inject the name
+    with open(f'{base_path}/orchestrator_build.py', 'r+') as f:
         content = f.read()
         f.seek(0)
         f.write(f'ORCHESTRATOR_NAME = "{name}"\n' + content)
         f.truncate()
 
+    # Build executable
     subprocess.run([
         "pyinstaller",
         "--onefile",
-        "--distpath", "./orchestrator_dist",
+        "--distpath", build_path,
         "--clean",
         "--name", "orchestrator_build",
         "--noconsole",
-        "./orchestrator-template/orchestrator_build.py"
+        f"{base_path}/orchestrator_build.py"
     ], check=True)
 
-    build_path = os.path.join("./orchestrator_dist", "orchestrator_build")
-    zip_path = "./orchestrator_dist/orchestrator_build.zip"
+    executable_path = os.path.join(build_path, "orchestrator_build")
+    zip_path = os.path.join(build_path, "orchestrator_build.zip")
 
-    if not os.path.exists(build_path):
+    if not os.path.exists(executable_path):
         raise FileNotFoundError("orchestrator_build not found!")
 
     if os.path.exists(zip_path):
         os.remove(zip_path)
 
     with zipfile.ZipFile(zip_path, 'w') as zipf:
-        zipf.write(build_path, arcname="orchestrator_build")
-
+        zipf.write(executable_path, arcname="orchestrator_build")
     print(f"[INFO] Created zipped orchestrator at {zip_path}")
 
 if __name__ == '__main__':
