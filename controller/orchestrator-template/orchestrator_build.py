@@ -2,7 +2,7 @@ import requests
 import time
 import argparse
 
-ORCHESTRATOR_NAME = "Unnamed Orchestrator"
+# ORCHESTRATOR_NAME will be injected here by app.py
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Orchestrator Heartbeat Sender")

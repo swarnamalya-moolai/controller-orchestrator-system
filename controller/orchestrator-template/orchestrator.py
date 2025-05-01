@@ -2,7 +2,7 @@ import requests
 import time
 import argparse
 
-# This line will be injected dynamically during build
+# This line will be overwritten dynamically by controller during build
 ORCHESTRATOR_NAME = "Unnamed Orchestrator"
 
 def parse_args():
@@ -18,7 +18,7 @@ def send_heartbeat(controller_url, orchestrator_id):
             "name": ORCHESTRATOR_NAME
         }
         headers = {'Content-Type': 'application/json'}
-        res = requests.post(controller_url + '/heartbeat', json=payload, headers=headers, timeout=5)
+        res = requests.post(f"{controller_url}/heartbeat", json=payload, headers=headers, timeout=5)
         print(f"[Heartbeat] {res.status_code}")
     except Exception as e:
         print("[Heartbeat Failed]", e)
