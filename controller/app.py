@@ -12,8 +12,7 @@ app.secret_key = 'supersecret'
 DUMMY_USERNAME = "admin"
 DUMMY_PASSWORD = "password123"
 
-# {ip: (orch_id, name, last_seen)}
-orchestrators = {}
+orchestrators = {}  # {ip: (orch_id, name, last_seen)}
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -39,15 +38,15 @@ def generate():
         return redirect(url_for('login'))
 
     name = request.form.get('name')
-    print(f"The Name entered is:  {name}")
     if not name:
         return "Name is required.", 400
 
-    session['orchestrator_name'] = name
-    create_orchestrator_executable(name)
-
-    file_path = './orchestrator_dist/orchestrator_build.zip'
-    return send_file(file_path, as_attachment=True)
+    try:
+        create_orchestrator_executable(name)
+        file_path = './controller/orchestrator_dist/orchestrator_build.zip'
+        return send_file(file_path, as_attachment=True)
+    except Exception as e:
+        return f"Failed to generate orchestrator: {str(e)}", 500
 
 @app.route('/heartbeat', methods=['POST'])
 def heartbeat():
@@ -92,32 +91,30 @@ def monitor_heartbeats():
         threading.Event().wait(15)
 
 def create_orchestrator_executable(name):
-    os.makedirs("./orchestrator_dist", exist_ok=True)
+    os.makedirs("./controller/orchestrator_dist", exist_ok=True)
 
-    # Copy base orchestrator
-    shutil.copyfile('./controller/orchestrator-template/orchestrator.py', './controller/orchestrator-template/orchestrator_build.py')
+    src_path = './controller/orchestrator-template/orchestrator.py'
+    dest_path = './controller/orchestrator-template/orchestrator_build.py'
+    shutil.copyfile(src_path, dest_path)
 
-    # Inject ORCHESTRATOR_NAME
-    with open('./controller/orchestrator-template/orchestrator_build.py', 'r+') as f:
+    with open(dest_path, 'r+') as f:
         content = f.read()
         f.seek(0)
         f.write(f'ORCHESTRATOR_NAME = "{name}"\n' + content)
         f.truncate()
 
-    # Build with PyInstaller
     subprocess.run([
         "pyinstaller",
         "--onefile",
-        "--distpath", "./orchestrator_dist",
+        "--distpath", "./controller/orchestrator_dist",
         "--clean",
         "--name", "orchestrator_build",
         "--noconsole",
-        "./controller/orchestrator-template/orchestrator_build.py"
+        dest_path
     ], check=True)
 
-    # Package the binary
-    build_path = os.path.join("./orchestrator_dist", "orchestrator_build")
-    zip_path = "./orchestrator_dist/orchestrator_build.zip"
+    build_path = "./controller/orchestrator_dist/orchestrator_build"
+    zip_path = "./controller/orchestrator_dist/orchestrator_build.zip"
 
     if not os.path.exists(build_path):
         raise FileNotFoundError("orchestrator_build not found!")
@@ -127,6 +124,7 @@ def create_orchestrator_executable(name):
 
     with zipfile.ZipFile(zip_path, 'w') as zipf:
         zipf.write(build_path, arcname="orchestrator_build")
+
     print(f"[INFO] Created zipped orchestrator at {zip_path}")
 
 if __name__ == '__main__':
