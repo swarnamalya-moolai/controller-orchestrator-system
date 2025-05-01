@@ -39,10 +39,11 @@ def generate():
         return redirect(url_for('login'))
 
     name = request.form.get('name')
+    print(f"The Name entered is:  {name}")
     if not name:
         return "Name is required.", 400
 
-    session['orchestrator_name'] = name
+    #session['orchestrator_name'] = name
     create_orchestrator_executable(name)
 
     file_path = './orchestrator_dist/orchestrator_build.zip'
@@ -93,16 +94,20 @@ def monitor_heartbeats():
 def create_orchestrator_executable(name):
     os.makedirs("./orchestrator_dist", exist_ok=True)
 
-    # Copy base orchestrator
-    shutil.copyfile('./orchestrator-template/orchestrator.py', './orchestrator-template/orchestrator_build.py')
+    src_path = './orchestrator-template/orchestrator.py'
+    build_path_py = './orchestrator-template/orchestrator_build.py'
 
-    # Inject ORCHESTRATOR_NAME
-    with open('./orchestrator-template/orchestrator_build.py', 'r+') as f:
-        content = f.read()
-        f.seek(0)
-        f.write(f'ORCHESTRATOR_NAME = "{name}"\n' + content)
+    with open(src_path, 'r') as src_file:
+        lines = src_file.readlines()
 
-    # Build with PyInstaller
+    with open(build_path_py, 'w') as build_file:
+        for line in lines:
+            if line.strip().startswith('ORCHESTRATOR_NAME'):
+                build_file.write(f'ORCHESTRATOR_NAME = "{name}"\n')
+            else:
+                build_file.write(line)
+
+    # Build the executable
     subprocess.run([
         "pyinstaller",
         "--onefile",
@@ -110,22 +115,23 @@ def create_orchestrator_executable(name):
         "--clean",
         "--name", "orchestrator_build",
         "--noconsole",
-        "./orchestrator-template/orchestrator_build.py"
+        build_path_py
     ], check=True)
 
-    # Package the binary
-    build_path = os.path.join("./orchestrator_dist", "orchestrator_build")
+    binary_path = "./orchestrator_dist/orchestrator_build"
     zip_path = "./orchestrator_dist/orchestrator_build.zip"
 
-    if not os.path.exists(build_path):
+    if not os.path.exists(binary_path):
         raise FileNotFoundError("orchestrator_build not found!")
 
     if os.path.exists(zip_path):
         os.remove(zip_path)
 
     with zipfile.ZipFile(zip_path, 'w') as zipf:
-        zipf.write(build_path, arcname="orchestrator_build")
+        zipf.write(binary_path, arcname="orchestrator_build")
+
     print(f"[INFO] Created zipped orchestrator at {zip_path}")
+
 
 if __name__ == '__main__':
     threading.Thread(target=monitor_heartbeats, daemon=True).start()
