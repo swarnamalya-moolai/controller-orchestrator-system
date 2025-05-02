@@ -43,7 +43,7 @@ def generate():
 
     create_orchestrator_executable(name)
 
-    file_path = './controller/orchestrator_dist/orchestrator_build.zip'
+    file_path = './orchestrator_dist/orchestrator_build.zip'
     return send_file(file_path, as_attachment=True)
 
 @app.route('/heartbeat', methods=['POST'])
