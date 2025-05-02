@@ -71,7 +71,7 @@ def heartbeat_status():
     now = datetime.datetime.utcnow()
     data = []
     for ip, (orch_id, name, last_seen) in orchestrators.items():
-        status = "Online" if (now - last_seen).total_seconds() <= 30 else "Offline"
+        status = "Online" if (now - last_seen).total_seconds() <= 70 else "Offline"
         data.append({
             "name": name or orch_id,
             "ip": ip,
