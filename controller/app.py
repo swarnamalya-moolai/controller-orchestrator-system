@@ -89,20 +89,18 @@ def monitor_heartbeats():
         threading.Event().wait(15)
 
 def create_orchestrator_executable(name):
-    base_path = './controller/orchestrator-template'
-    build_path = './controller/orchestrator_dist'
+    base_path = './orchestrator-template'  # Remove /controller prefix
+    build_path = './orchestrator_dist'
     os.makedirs(build_path, exist_ok=True)
 
     shutil.copyfile(f'{base_path}/orchestrator.py', f'{base_path}/orchestrator_build.py')
 
-    # Inject the name
     with open(f'{base_path}/orchestrator_build.py', 'r+') as f:
         content = f.read()
         f.seek(0)
         f.write(f'ORCHESTRATOR_NAME = "{name}"\n' + content)
         f.truncate()
 
-    # Build executable
     subprocess.run([
         "pyinstaller",
         "--onefile",
@@ -124,7 +122,9 @@ def create_orchestrator_executable(name):
 
     with zipfile.ZipFile(zip_path, 'w') as zipf:
         zipf.write(executable_path, arcname="orchestrator_build")
+
     print(f"[INFO] Created zipped orchestrator at {zip_path}")
+
 
 if __name__ == '__main__':
     threading.Thread(target=monitor_heartbeats, daemon=True).start()
